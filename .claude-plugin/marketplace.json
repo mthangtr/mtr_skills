@@ -5,27 +5,12 @@
   },
   "plugins": [
     {
-      "name": "mtr-business",
-      "source": "./plugins/mtr-business",
-      "description": "Startup idea validation, service offer definition, brand naming, and go-to-market strategy."
-    },
-    {
-      "name": "mtr-design",
-      "source": "./plugins/mtr-design",
-      "description": "Premium app icon design (SVG) and product mascot design."
-    },
-    {
-      "name": "mtr-video",
-      "source": "./plugins/mtr-video",
-      "description": "AI film/video production pipeline and motion video making."
-    },
-    {
-      "name": "mtr-game",
-      "source": "./plugins/mtr-game",
-      "description": "Game design doc sets and 2D/3D game graphics techniques."
+      "name": "mtr",
+      "source": "./plugins/mtr",
+      "description": "Business, design, motion video, and game skills."
     }
   ],
   "metadata": {
-    "description": "Personal Claude Code plugins by mthangtr: business, design, video, game."
+    "description": "Personal Claude Code plugin by mthangtr: business, design, motion video, game."
   }
 }
