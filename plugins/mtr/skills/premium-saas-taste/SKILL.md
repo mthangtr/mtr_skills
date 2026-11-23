@@ -5,9 +5,11 @@ description: Use when designing or redesigning a SaaS landing page, marketing si
 
 # Premium SaaS Taste
 
+**Skill folder:** `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/`. Always use this full path for its scripts and references; never `~/.claude/skills/…` or a path relative to the project. Paths like `scripts/shot.mjs` inside the reference files are relative to this folder.
+
 ## Core principle
 
-Premium SaaS work is **world first, UI second**. The studios in `references/images/` start from one picture of a *world* (a sky, a forest at dawn, a survey map, a marble statue, a field of ASCII). They treat it so it looks designed rather than downloaded, take the palette **from** it, and set a very quiet UI on top. The world carries the brand. The UI stays nearly boring.
+Premium SaaS work is **world first, UI second**. The studios in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/images/` start from one picture of a *world* (a sky, a forest at dawn, a survey map, a marble statue, a field of ASCII). They treat it so it looks designed rather than downloaded, take the palette **from** it, and set a very quiet UI on top. The world carries the brand. The UI stays nearly boring.
 
 An agent without this skill reaches for a *style* instead ("cream paper, serif headline, italic accent word, mono labels"). The result is clean and accurate, and it looks like every other AI page. The fix is not more polish. It is choosing a world before choosing any CSS.
 
@@ -22,9 +24,9 @@ A product's landing page is Persuade; its app is Operate. Onboarding is Persuade
 **With `/impeccable` (recommended pairing):** this skill sets the direction and `/impeccable` builds and polishes.
 1. Fill in the Direction Card here (Step 1) and write it into the project's `DESIGN.md` under "Direction", plus the mode, into the surface brief. Impeccable treats `DESIGN.md` as pinned direction ("the brief wins").
 2. Build with `/impeccable` (its new-work flow, craft floor and finish review), following this skill's Persuade or Operate rules.
-3. Verify here: `scripts/shot.mjs`, then the rubric list in `references/checks.md` (target ≥ 90%).
+3. Verify here: `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/shot.mjs`, then the rubric list in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/checks.md` (target ≥ 90%).
 
-If the two skills disagree on an Operate surface, **keep the chrome neutral**: no coloured sidebar or shell, and the accent only on the one primary, the selection and the owned meaning. None of the 14 premium apps in `references/app-reference.md` colours its shell. Write the decision into DESIGN.md so impeccable's reviewer respects it.
+If the two skills disagree on an Operate surface, **keep the chrome neutral**: no coloured sidebar or shell, and the accent only on the one primary, the selection and the owned meaning. None of the 14 premium apps in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/app-reference.md` colours its shell. Write the decision into DESIGN.md so impeccable's reviewer respects it.
 
 ## Step 1: Write the Direction Card (before any code)
 
@@ -38,12 +40,12 @@ Surface       : <source + treatment from the table below, and WHERE it appears (
 Palette       : <sampled from the surface: ground, ink, accent (+ the ONE meaning the accent has), proportions e.g. 60/25/10/5>
 Type          : <display family + weight + size + tracking; text family; the one type move>
 Signature move: <one thing someone would describe to a friend: "the hero is a dithered survey map and the log card sits on it like a clipboard">
-References    : <only if the user gave any: one TAKE / SKIP line per reference (see references/art-direction.md)>
-Components    : <foundation restyled (radius, colours, type) + specialists by name, e.g. "shadcn @ radius 6, Sonner, NumberFlow" (see references/components.md)>
+References    : <only if the user gave any: one TAKE / SKIP line per reference (see ${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/art-direction.md)>
+Components    : <foundation restyled (radius, colours, type) + specialists by name, e.g. "shadcn @ radius 6, Sonner, NumberFlow" (see ${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/components.md)>
 Default check : <name the closest default look below and the 2+ features you are NOT sharing with it>
 ```
 
-**For a new brand or landing page, explore before committing.** Write three cards with three different worlds, build only the hero for each, render and score them, then pick one. How to do this, and how to direct iteration and motion in concrete terms, is in `references/art-direction.md`.
+**For a new brand or landing page, explore before committing.** Write three cards with three different worlds, build only the hero for each, render and score them, then pick one. How to do this, and how to direct iteration and motion in concrete terms, is in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/art-direction.md`.
 
 ### Choosing the world
 
@@ -62,24 +64,24 @@ Start from the customer, not the product category. Ask: what do they look at all
 | Consumer, wellness, creative | A single tactile 3D object or a soft natural macro (flower, fur, glass) | `brand-systems-quaev-2` |
 | Trading, high-energy, night work | Near-black with one light band leaking in from outside the frame | `dashboard-dark-aurora`, `hero-atmosphere-ascii` |
 
-**Open at least two of the matching images now** (Read tool) and name the mechanism you are taking. `references/teardown.md` explains every image.
+**Open at least two of the matching images now** (Read tool) and name the mechanism you are taking. `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/teardown.md` explains every image.
 
 ## Step 2: Build the surface
 
 **Photographs first.** Almost every 9–10 reference is a real photograph or render that has been *treated*. Procedural noise on its own tops out around 8/10 for surface. In order of preference:
 1. The user's own imagery (brand shoot, product photos, AI-generated key visual). Ask for it.
-2. An openly licensed photo of the world: `node scripts/photo.mjs "construction site dusk crane" assets/photos 6` downloads reusable candidates from Wikimedia Commons with `credits.json`. Open every candidate and pick the one with a clear silhouette and one light source. Credit it in the footer.
+2. An openly licensed photo of the world: `node ${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/photo.mjs "construction site dusk crane" assets/photos 6` downloads reusable candidates from Wikimedia Commons with `credits.json`. Open every candidate and pick the one with a clear silhouette and one light source. Credit it in the footer.
 3. Procedural surfaces (below) when there is no network, or as the world for abstract products.
 
 **Generating images?** (with an image MCP or your user's tools) Brief the image like a shoot: one subject, one light source, the palette, and **empty space where the headline will sit**.
 
 **Which photos to treat.** Documentary photos (real customers or the product in use, as in `live-primefold-documentary`) stay *untreated*: colour-grade them toward the palette and crop them tightly. *World* photos (sky, landscape, object, texture) are always treated. Line art or illustration alone can also carry a world if it is drawn as one system (`live-steel-line-art-world`).
 
-**Treat world photos** so they look designed rather than downloaded: `source:'image'` with `dither` (a 3–4 colour ramp from your palette gives a print, as with the ember crane in `references/images/photo-treatments.jpg`), `halftone` in one ink, `ascii`, or `none` plus grain, a duotone CSS filter and a gradient scrim. A raw stock photo is the "template" look.
+**Treat world photos** so they look designed rather than downloaded: `source:'image'` with `dither` (a 3–4 colour ramp from your palette gives a print, as with the ember crane in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/images/photo-treatments.jpg`), `halftone` in one ink, `ascii`, or `none` plus grain, a duotone CSS filter and a gradient scrim. A raw stock photo is the "template" look.
 
 **One rendering language per world.** Don't mix a grainy photographic field with thin vector line art (a drawn crane, an SVG skyline): they clash, and judges mark it down. Annotations on top (pins, leader lines, labels) are UI, and that's fine.
 
-Copy `scripts/surface.js` into the project; it has no dependencies.
+Copy `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/surface.js` into the project; it has no dependencies.
 
 ```html
 <canvas class="world" aria-hidden="true"></canvas>
@@ -94,7 +96,7 @@ Copy `scripts/surface.js` into the project; it has no dependencies.
 </script>
 ```
 
-`references/images/surface-gallery.png` shows every source and treatment. Recipes that match the references:
+`${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/images/surface-gallery.png` shows every source and treatment. Recipes that match the references:
 
 | Look | Options |
 |---|---|
@@ -205,7 +207,7 @@ A run of three or more ground-coloured left/right splits is the template rhythm 
 - empty, onboarding, login and loading states, where the world can be full-strength;
 - the type and number voice: tabular figures and one considered sans.
 
-**Never** put the world behind the nav, tables, forms, the chat, or a page-wide banner. In real premium apps (`references/app-reference.md`, 14 screens), saturated colour covers 0.2–2% of the window, and the brand is spent on **one filled button**, the selection state and the logo. When the app is shown on a marketing page, onboarding or login, the world **frames the window from outside** (Cursor's painting, Granola's collage, Linear's gradient).
+**Never** put the world behind the nav, tables, forms, the chat, or a page-wide banner. In real premium apps (`${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/app-reference.md`, 14 screens), saturated colour covers 0.2–2% of the window, and the brand is spent on **one filled button**, the selection state and the logo. When the app is shown on a marketing page, onboarding or login, the world **frames the window from outside** (Cursor's painting, Granola's collage, Linear's gradient).
 
 **Structure rules:**
 - **The task object dominates.** The table, thread, editor, board or list takes at least half of the first viewport. A summary or "answer" is a compact row or one sentence at app scale (page title 20–28px, body 14–15px), never a banner that pushes the task below the fold. A stats row is fine **when it works**, for example count tabs that filter the table (Stripe, `mobbin-dashboard-density`).
@@ -232,7 +234,7 @@ A run of three or more ground-coloured left/right splits is the template rhythm 
 - **Short sidebars end on purpose:** put the secondary block (metadata, user, help) directly under the nav list, or pin the list to the bottom. Don't leave a 100–150px gap between them.
 - **At 390px the app is redesigned, not shrunk:** tables become row cards with the key number on the right, the sidebar becomes a top bar or sheet, charts get at most 6 ticks with 12px labels, and the primary action is within thumb reach.
 
-Check against `references/app-reference.md` (premium app screens) before finishing.
+Check against `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/app-reference.md` (premium app screens) before finishing.
 
 ## How to decide the details
 
@@ -256,15 +258,15 @@ Two warning signs:
 
 ## Step 6: Render, judge, fix (required)
 
-1. `node scripts/shot.mjs page.html shots/page` renders 1440×900, 1440 at true full height, and real 390px mobile emulation. It needs only Chrome and Node 22+. It also:
+1. `node ${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/shot.mjs page.html shots/page` renders 1440×900, 1440 at true full height, and real 390px mobile emulation. It needs only Chrome and Node 22+. It also:
    - prints a **craft audit** for both widths: horizontal overflow, text under 11px, clipped text, text overlapping text, contrast failures on solid backgrounds, and single-word orphans in headings;
    - prints **Operate metrics**: type sizes in use (cap 5), largest size, distinct button heights (aim for 2–3) and tap targets under 40px at 390 (aim for 0). These map to rubric items O4, O2, O9 and U12;
    - writes **full-resolution tiles** (`-full-1.png`, `-mobile-1.png` …), one viewport each.
 
    Fix every audit line before scoring; they are free points. Then read the tiles, not just the whole-page image, because downscaled pages hide exactly the defects that judges mark.
-2. Answer the **rubric list** in `references/checks.md` (U + P items for Persuade, U + O for Operate) from the screenshots and tiles, next to two reference images. Fix every failure, then re-render. Models can't reliably grade taste on a 1–10 scale (Anthropic's Claude Design team found that only yes/no and objective checks work), so don't chase a score.
-3. Made several pages or directions? Run `node scripts/diversity.mjs a.html b.html …`. If two of them share a display font and a main hue, one defaulted.
-4. The bar is **≥ 90% of the applicable items**. Stop when you reach it, or after 3 fix rounds. Report it as `Operate · 28/30 (93%) · fails: O6, U10`. **The final judge of taste is the user's eyes:** show them the hero and the 390 screenshot, and ask. For a coarse second opinion, `references/rubric.md` (1–10, as the median of 3 fresh judges) is acceptable but weak evidence.
+2. Answer the **rubric list** in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/checks.md` (U + P items for Persuade, U + O for Operate) from the screenshots and tiles, next to two reference images. Fix every failure, then re-render. Models can't reliably grade taste on a 1–10 scale (Anthropic's Claude Design team found that only yes/no and objective checks work), so don't chase a score.
+3. Made several pages or directions? Run `node ${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/diversity.mjs a.html b.html …`. If two of them share a display font and a main hue, one defaulted.
+4. The bar is **≥ 90% of the applicable items**. Stop when you reach it, or after 3 fix rounds. Report it as `Operate · 28/30 (93%) · fails: O6, U10`. **The final judge of taste is the user's eyes:** show them the hero and the 390 screenshot, and ask. For a coarse second opinion, `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/rubric.md` (1–10, as the median of 3 fresh judges) is acceptable but weak evidence.
 
 Craft gates that fail screenshots most often:
 - **390px:** no horizontal overflow. Use `max-width:100%`, `min-width:0` on grid children, `clamp()` for display sizes, no `white-space:nowrap` on headlines, and tables that become stacked rows or scroll inside their own container.
@@ -324,10 +326,10 @@ Remove each one you find, or justify it in the Direction Card.
 ## Related
 
 - Use `impeccable` after this skill for audit, polish, accessibility and hardening. This skill decides the direction; impeccable perfects the execution.
-- `references/teardown.md`: what each reference image does.
-- `references/art-direction.md`: reference boards (take/skip), three-direction exploration, art-director iteration language, motion shot-lists.
-- `references/components.md`: foundations to restyle, specialist libraries (Sonner, Vaul, cmdk, NumberFlow), and the one-standout-moment rule.
-- `references/checks.md`: **the rubric list**: 14 universal, 10 Persuade and 16 Operate yes/no items. The quality bar is ≥ 90% of the applicable items.
-- `references/app-reference.md`: premium app screens (Operate mode) and how they bring brand in without noise.
-- `references/rubric.md`: the 1–10 criteria, kept as a coarse second opinion, with calibration data.
-- `scripts/diversity.mjs`: across several outputs, flags pages that share a display font and a main hue (a sign of defaulting).
+- `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/teardown.md`: what each reference image does.
+- `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/art-direction.md`: reference boards (take/skip), three-direction exploration, art-director iteration language, motion shot-lists.
+- `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/components.md`: foundations to restyle, specialist libraries (Sonner, Vaul, cmdk, NumberFlow), and the one-standout-moment rule.
+- `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/checks.md`: **the rubric list**: 14 universal, 10 Persuade and 16 Operate yes/no items. The quality bar is ≥ 90% of the applicable items.
+- `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/app-reference.md`: premium app screens (Operate mode) and how they bring brand in without noise.
+- `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/rubric.md`: the 1–10 criteria, kept as a coarse second opinion, with calibration data.
+- `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/diversity.mjs`: across several outputs, flags pages that share a display font and a main hue (a sign of defaulting).
