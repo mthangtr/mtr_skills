@@ -56,28 +56,29 @@ Start from the customer, not the product category. Ask: what do they look at all
 | Calm intelligence, AI assistant, cloud | Sky, clouds, horizon light, mist | `hero-world-photos`, `hero-nature-worlds`, `backgrounds-treated` |
 | Physical operations (construction, energy, logistics, farming) | Survey / topographic map, terrain at dawn, dunes, site light | `hero-painterly-grain`, `landing-light-mesh` |
 | Money, CRM, legal (needs prestige) | Classical statue, engraving, fresco, gold object, duotone print | `landing-collage-statues`, `landing-full-pages`, `brand-systems-quaev-1` (Monarch) |
-| Infra, security, devtools, deep tech | Instrument / HUD: brackets, ticks, coordinates, ASCII or halftone of one object; a dithered or pixel landscape | `hero-directions-dark`, `hero-directions-hud`, `live-browserbase-dither-agents-cta` |
+| Infra, security, devtools, deep tech | Instrument / HUD: brackets, ticks, coordinates; ASCII, halftone or dither on **one contained object**, not the whole background | `hero-directions-dark`, `hero-directions-hud`, `live-browserbase-dither-agents-cta` |
 | Light, precise, "engineered" (any category, light mode) | Blueprint frame: visible 1px container rails, crop marks at frame corners, hatched gutter bands between sections, small "+" crosshairs | `x-light-cropmark-frame`, `live-accessgrid-rails` |
 | Institutional, education, "serious" AI | Architecture and interiors: a library, a concrete stair, a lit atrium | `live-contralabs-paintings` |
 | Brand-led (strong mark, little imagery) | **The mark as the world:** the logo blown up into a blurred chromatic aura, scattered with tiny brand glyphs (seeds, "@", part numbers) | `x-mark-as-world-glyphs` |
 | Any product with a physical paper trail | **The artifact as the world:** the real document or object of the trade becomes the material of the UI, such as a carbon-copy form, a case file with stamps, an order ticket on a rail, a key cabinet, a patent drawing. It needs no photo; the material (paper stock, stamps, perforations, handwriting) carries the brand. | Tallow ticket ledger (Step 5) |
 | Consumer, wellness, creative | A single tactile 3D object or a soft natural macro (flower, fur, glass) | `brand-systems-quaev-2` |
 | Trading, high-energy, night work | Near-black with one light band leaking in from outside the frame | `dashboard-dark-aurora`, `hero-atmosphere-ascii` |
+| AI, infra, any product where light is the metaphor | **Light as the world:** a horizon glow rising from below, a ribbon of light leaking in from off-canvas, an aurora curtain, light blades, a dusk sky. See *Gradient light* below. | `research5` findings in *Gradient light* |
 
 **Open at least two of the matching images now** (Read tool) and name the mechanism you are taking. `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/teardown.md` explains every image.
 
 ## Step 2: Build the surface
 
-**Photographs first.** Almost every 9–10 reference is a real photograph or render that has been *treated*. Procedural noise on its own tops out around 8/10 for surface. In order of preference:
+**The world is a photograph, a painting, or light.** In a Nov 2026 capture of 42 premium SaaS/AI homepages, about 30 lead with a flat ground and the product UI, about 7 with a procedural light gradient (Stripe, Raycast, Retool, Framer, Mintlify, Pitch, Reflect) and the rest with a photo or painted plate (Superhuman, Mercury, Cursor, Railway, Dia). **None used dither, halftone or ASCII as the hero background.** In order of preference for the world:
 1. The user's own imagery (brand shoot, product photos, AI-generated key visual). Ask for it.
 2. An openly licensed photo of the world: `node ${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/photo.mjs "construction site dusk crane" assets/photos 6` downloads reusable candidates from Wikimedia Commons with `credits.json`. Open every candidate and pick the one with a clear silhouette and one light source. Credit it in the footer.
-3. Procedural surfaces (below) when there is no network, or as the world for abstract products.
+3. Procedural surfaces (below): **gradient light** (`horizon`, `ribbon`, `curtain`, `slats`, `sky`, `aurora`) for abstract products, or a map, dunes or mesh when the world calls for it.
 
 **Generating images?** (with an image MCP or your user's tools) Brief the image like a shoot: one subject, one light source, the palette, and **empty space where the headline will sit**.
 
-**Which photos to treat.** Documentary photos (real customers or the product in use, as in `live-primefold-documentary`) stay *untreated*: colour-grade them toward the palette and crop them tightly. *World* photos (sky, landscape, object, texture) are always treated. Line art or illustration alone can also carry a world if it is drawn as one system (`live-steel-line-art-world`).
+**Which photos to treat.** Documentary photos (real customers or the product in use, as in `live-primefold-documentary`) stay *untreated*: colour-grade them toward the palette and crop them tightly. *World* photos (sky, landscape, object, texture) are colour-graded toward the palette and given haze or light grain; a stylised treatment is optional. Line art or illustration alone can also carry a world if it is drawn as one system (`live-steel-line-art-world`).
 
-**Treat world photos** so they look designed rather than downloaded: `source:'image'` with `dither` (a 3–4 colour ramp from your palette gives a print, as with the ember crane in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/images/photo-treatments.jpg`), `halftone` in one ink, `ascii`, or `none` plus grain, a duotone CSS filter and a gradient scrim. A raw stock photo is the "template" look.
+**Stylised treatments are rare, not the default.** Dither, halftone, ASCII and pixel are a deliberate style for one contained object, one plate or a print/industrial world; use them on at most one surface per page and never as the default answer. When you do treat a photo: `source:'image'` with `dither` (a 3–4 colour ramp from your palette gives a print, as with the ember crane in `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/references/images/photo-treatments.jpg`), `halftone` in one ink, `ascii`, or `none` plus grain, a duotone CSS filter and a gradient scrim. A raw stock photo is the "template" look.
 
 **One rendering language per world.** Don't mix a grainy photographic field with thin vector line art (a drawn crane, an SVG skyline): they clash, and judges mark it down. Annotations on top (pins, leader lines, labels) are UI, and that's fine.
 
@@ -88,10 +89,10 @@ Copy `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/surface.js` into t
 <script src="surface.js"></script>
 <script>
   Surface.render(document.querySelector('.world'), {
-    source: 'contour',                         // sky | aurora | dunes | contour | mesh | image
-    colors: ['#e9e4d8', '#9a917c', '#d9531e'], // source inputs (see header of surface.js)
+    source: 'horizon',                         // horizon | ribbon | curtain | slats | sky | aurora | dunes | contour | mesh | image
+    colors: ['#05060d', '#010293', '#4a70da', '#bfe0ff'], // source inputs (see each source's comment in surface.js)
     treatment: 'none',                         // none | dither | halftone | ascii | pixel
-    cell: 6, grain: 0.05, seed: 12,            // image: pass { source:'image', image:'photo.jpg' }
+    cell: 6, grain: 0.03, seed: 12,            // grain 0 is fine: anti-banding noise is always on. image: { source:'image', image:'photo.jpg' }
   }).then(s => Surface.applyPalette(s.palette)); // sets --surface-1..5, --surface-accent, --surface-dark, --surface-light
 </script>
 ```
@@ -100,12 +101,31 @@ Copy `${CLAUDE_PLUGIN_ROOT}/skills/premium-saas-taste/scripts/surface.js` into t
 
 | Look | Options |
 |---|---|
-| Cobalt halftone clouds | `sky`, `['#1838d8','#3f66f0','#fff']`, `halftone`, cell 5, paper `#1838d8`, ink `#fff` |
+| Horizon glow, blue (Bolt, dark AI) | `horizon`, `['#05060d','#010293','#4a70da','#bfe0ff']`, grain .03; headline in the dark top 40%, product card on the limb |
+| Horizon glow, ember | `horizon`, `['#0d0704','#3a0f04','#c2410c','#fdba74']`, grain .03 |
+| Ribbon light leak on white (Stripe) | `ribbon`, `['#ffffff','#ff9a3c','#f5957c','#df749f','#a960ee']`, grain 0; headline left on white |
+| Ribbon, cool on paper | `ribbon`, `['#f7f7f4','#7fd6c9','#4a9fd8','#2f5bd3']`, grain 0 |
+| Aurora curtain (teal / green) | `curtain`, `['#0a1622','#224b70','#649fb5','#bcd8e1']` or `['#012327','#0c4f44','#1a906f','#4ad998','#baeb97']`, grain .04; UI rises from the dark end |
+| Light blades (Raycast) | `slats`, `['#07090a','#600e16','#b3202f','#ff5a66']`, grain .03; bold white headline may sit on the blades |
+| Dusk sky with haze | `sky`, `['#4a649c','#c1c7e9','#e9e2f0']`, grain .03; text in the clear upper sky |
+| *Stylised (one contained surface only):* cobalt halftone clouds | `sky`, `['#1838d8','#3f66f0','#fff']`, `halftone`, cell 5, paper `#1838d8`, ink `#fff` |
 | 8-bit dusk sky behind an app | `sky`, `['#5d7f8c','#a9b9b0','#f1dfb8']`, `dither`, cell 9 |
 | Grain aurora (dark product) | `aurora`, `['#07070c','#4b2bd6','#b9a2ff','#f0b8ff']`, grain .07 |
 | ASCII light band | `aurora`, `['#0a0a0a','#ff5a1f','#ffb36b']`, `ascii`, cell 9 |
 | Dune at dusk | `dunes`, `['#1a0f0c','#5a2414','#b4441d','#e8743a']`, grain .06 |
 | Survey map | `contour`, `[paper, line, accent]`, grain .04 |
+
+**Gradient light: premium vs cheap.** From two captures of live premium sites and practitioner posts (Nov 2026):
+- **A light source, not a fill.** One origin at or beyond the frame edge: a horizon below, a leak from a corner, a ribbon from off-canvas, blades from one side. Several equal blobs spread across the frame is the cheap version.
+- **Mostly empty.** Saturated colour covers 10–35% of the hero (Raycast 17%, Stripe 29%, Retool 16%, Framer 9%); the rest is a tinted black, white or neutral. Only a single-hue field may go above 60%.
+- **Lightness range first, hue second.** A gradient that only shifts hue at constant lightness (the 135° blue→violet→pink sweep) is the AI default.
+- **One hue family** plus its neighbour, or a deliberate complementary pair at low alpha. Not indigo/violet/magenta as the main hue by habit, and never four equal-saturation hues.
+- **Tinted darks.** `#030014`, `#040804`, `#07080a`, never a neon blob on pure `#000`.
+- **Edges dissolve or are framed:** a seam into the next section, a mask to white, a horizon arc, or a deliberate rounded plate. A gradient that stops at a hard rectangle edge looks pasted.
+- **Text on the calmest, most extreme-value zone.** Only bold white display type may cross mid-value light (Raycast, Dia).
+- **The product sits on the seam and is lit by it:** a window or prompt card on the horizon limb, light catching its top edge. A glow placed under a card as a halo is the cheap version.
+- **Grain is optional.** Most premium gradients have none; dark glows and skies take 2–4% at most. `surface.js` always adds ±1 LSB per-channel noise, which stops banding without visible grain.
+- **One motif, repeated with variation** lower on the page (a dark interlude band, the CTA plate, the footer arc). A one-off hero gradient looks pasted on.
 
 Surface rules:
 - **A world has light.** At least one region of the surface carries real saturation or a strong light/dark contrast: the sky's blue, the lamp's amber, the horizon glow, a dark band with a lit edge. A grey line drawing on a grey ground is a diagram, not a world, and it scores like flat paper. If the world is a map or drawing, put it on a lit or tinted ground (dusk slate, cobalt, ember) or add the light source it implies.
@@ -149,7 +169,7 @@ Set type for the world, not for "premium":
   - a **giant word behind the subject**: the wordmark or a key word set huge, with a cut-out photo subject in front (`x-giant-word-behind-subject`);
   - a condensed, pixel or dot-matrix display face, for instruments and terminals (Doto, Silkscreen, Big Shoulders Display);
   - a two-tone headline (second clause at 40–55% opacity). **Hero only.** Other anti-slop skills now list the grey second line as an AI tell when it repeats.
-- **Big numbers get their own voice.** Hero numbers ("4:52 PM", "$4,812", "98.4%") use a contrasting cut: the display face at weight 200 and a much larger size, or a condensed or numeral face with tabular figures. If every heading and every number is the same light grotesk, the page reads flat, which is the most common 8/10 typography score.
+- **Big numbers get their own voice.** Hero numbers ("4:52 PM", "$4,812", "98.4%") use a contrasting cut: the display face at weight 200 and a much larger size, or a condensed or numeral face with tabular figures. If every heading and every number is the same light grotesk, the page reads flat, which is the most common 8/10 typography score. **A giant numeral counts as the page's one type move.** If the headline already has one (inline chip, highlighter, two-tone), keep stat numbers at section-heading size in the same family and width; a condensed width or numeral face reads to reviewers as a third family.
 - **Mono depends on the product.**
   - **Dev, infra, agent and CAD tools:** mono may be part of the instrument voice: nav, buttons with keyboard hints such as `SIGN IN [S]`, and labels (`live-steel-line-art-world`).
   - **Everything else:** mono is for machine values only (numbers in tables, IDs, timestamps, coordinates). Names of people, authors, journals and descriptive labels ("Chen et al.", "Machine translation") are human text and use the sans, even inside a source card. Column headers, axis titles, section eyebrows and kickers use the sans (12–13px, medium, muted ink, sentence case). More than about 6 mono labels outside tables on such a page is the paper-edition tic.
@@ -286,13 +306,14 @@ If the page shares **three** features with any of these, go back to Step 1:
 |---|---|
 | Paper edition | cream/off-white paper, serif headline with one italic accent word, mono eyebrow labels everywhere, a city pair or "now booking" |
 | Launch page | black, purple glow, tilted screenshot, gradient text |
+| Cheap gradient | a 135° blue→violet→pink sweep, evenly spread pastel blobs, a centred purple radial, a neon glow on pure black, a halo under a card |
 | KPI dashboard | four equal KPI cards with sparklines on top, then a chart, then a table |
 | Dark dev tool | near-black, neon green/cyan code, terminal chrome everywhere |
 | Acid accent | near-black ground with one acid-green, lime or vermilion accent, used on everything that matters |
 | Broadsheet | hairline rules everywhere, zero radius, dense newspaper columns, serif plus small caps |
 | Studio portfolio (the overcorrection) | off-white, giant headline, numbered mono labels, a clock in the header |
 
-**This skill's own default (avoid it too).** In testing, agents using this skill drifted toward one house look: a dithered photo in navy or azure, Hanken Grotesk, and a light display weight. Two independent runs on the same brief even invented the same world. Before you commit, check the Direction Card against it:
+**This skill's own default (avoid it too).** In testing, agents using this skill drifted toward one house look: a dithered photo or ASCII field in navy or azure, Hanken Grotesk, and a light display weight. Two independent runs on the same brief even invented the same world. Before you commit, check the Direction Card against it:
 - **Treatment:** dither is one option among several. Choose from the world: grain for photographs of people, halftone for print or industry, a clean graded photo for documentary, an artifact material (paper, stamps) for products with a paper trail, line art for engineering.
 - **Typeface:** don't open with Hanken Grotesk or Geist by habit. Choose a display face with a reason tied to the world: a condensed face for signage or industry, a grotesk with character, or a serif on dark or photo grounds.
 - **Hue:** if the world's natural colour isn't blue, the page isn't blue.
@@ -317,7 +338,8 @@ Remove each one you find, or justify it in the Direction Card.
 |---|---|
 | Choosing the palette first (cream + burnt orange "because premium") | Palette comes from the surface (Step 3). |
 | A surface that is decoration only, e.g. a dotted grid or faint noise | The surface must depict the world; you should be able to name what it shows. |
-| A bare CSS radial gradient as the "atmosphere" | Use a source with structure (`sky`, `aurora` band, `dunes`) plus grain or a treatment. |
+| A bare CSS radial gradient as the "atmosphere" | Use a source with a light origin (`horizon`, `ribbon`, `curtain`, `slats`, `sky`) and follow *Gradient light*. |
+| Reaching for dither or ASCII on every page | They are rare stylised choices (0 of 42 premium heroes). Default to light, photo or a flat ground with the product. |
 | The surface behind tables and charts | Move it to the frame edge or the header band; keep data flat. |
 | Display weight picked by habit (always bold, or always light) | Pick the weight from the world (Step 4), and always set it tight (−0.035 to −0.05em). Loose tracking is the real tell. |
 | The accent used for links, icons, tags and charts at once | One meaning, ≤ 5% of the screen. |

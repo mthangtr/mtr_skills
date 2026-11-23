@@ -4,7 +4,7 @@
 // (light or dark) and the dominant hues (area-weighted backgrounds plus canvas/img pixels). It then
 // flags pairs that share the display font AND the main hue. Needs Chrome and Node 22+.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { resolve, basename, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -13,7 +13,7 @@ if (files.length < 2) { console.error('usage: node diversity.mjs <page.html> <pa
 const chrome = [process.env.CHROME, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean).find(p => existsSync(p));
 if (!chrome) { console.error('Chrome not found; set CHROME'); process.exit(1); }
 const port = 9800 + Math.floor(Math.random() * 150);
-const proc = spawn(chrome, ['--headless=new', `--remote-debugging-port=${port}`, '--disable-gpu', '--allow-file-access-from-files', `--user-data-dir=${mkdtempSync(tmpdir() + '/div-')}`, 'about:blank'], { stdio: 'ignore' });
+const proc = spawn(chrome, ['--headless=new', `--remote-debugging-port=${port}`, '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--allow-file-access-from-files', `--user-data-dir=${mkdtempSync(tmpdir() + '/div-')}`, 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let ws, id = 0; const pending = new Map();
 const send = (method, params = {}) => new Promise((res, rej) => { const m = ++id; pending.set(m, { res, rej }); ws.send(JSON.stringify({ id: m, method, params })); });
@@ -64,7 +64,8 @@ try {
     await send('Page.navigate', { url: 'file://' + resolve(f) }); await sleep(3000);
     const r = await send('Runtime.evaluate', { expression: MEASURE, returnByValue: true });
     const v = r.result.value; v.name = basename(dirname(resolve(f))) + '/' + basename(f); rows.push(v);
-    console.log(`${v.name.padEnd(28)} display: ${v.display} ${v.displayWeight} @${Math.round(v.displaySize)}px | body: ${v.body} | ${v.ground} | hues: ${v.hues.join(', ') || 'neutral'}`);
+    const src = readFileSync(resolve(f), 'utf8'); v.texture = (src.match(/treatment\s*:\s*['"](dither|halftone|ascii|pixel)['"]/) || [])[1] || (/source\s*:\s*['"](horizon|ribbon|curtain|slats|sky|aurora)['"]/.test(src) ? 'light' : '-');
+    console.log(`${v.name.padEnd(28)} display: ${v.display} ${v.displayWeight} @${Math.round(v.displaySize)}px | body: ${v.body} | ${v.ground} | hues: ${v.hues.join(', ') || 'neutral'} | surface: ${v.texture}`);
   }
   let clashes = 0;
   for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
@@ -72,6 +73,8 @@ try {
     if (a.display === b.display && (a.hues[0] || 'neutral') === (b.hues[0] || 'neutral')) { clashes++; console.log(`!! same display font (${a.display}) and main hue (${a.hues[0] || 'neutral'}): ${a.name} ~ ${b.name}`); }
   }
   const fonts = new Set(rows.map(r => r.display)).size, hues = new Set(rows.map(r => r.hues[0] || 'neutral')).size;
+  const stylised = rows.filter(r => ['dither','halftone','ascii','pixel'].includes(r.texture)).length;
+  if (stylised * 2 > rows.length) console.log(`!! ${stylised}/${rows.length} pages use a stylised treatment (dither/halftone/ascii/pixel): premium sites almost never do; switch some to light, photo or a flat ground`);
   console.log(`\ndistinct display fonts: ${fonts}/${rows.length} · distinct main hues: ${hues}/${rows.length} · clashing pairs: ${clashes}`);
 } catch (e) { console.error(e.message); process.exitCode = 1; }
 finally { ws?.close(); proc.kill(); }

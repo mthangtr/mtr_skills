@@ -25,7 +25,7 @@ Report it as: `Operate · 28/30 (93%) · fails: O6, U10`.
 
 ## P · Persuade (landing, pricing, brand sheet)
 
-- **P1** Is the hero the world (a treated photo, artifact, object or mark) with real product proof visible above the fold?
+- **P1** Is the hero the world (a photo or painting, a light gradient with one origin, an artifact, object or mark) with real product proof visible above the fold?
 - **P2** Is the world visible in the first 390×844 screen?
 - **P3** Does the world return at least every ~1.5 viewport heights?
 - **P4** Is there one type move (two-tone, highlighter, inline object or giant word), used exactly once?

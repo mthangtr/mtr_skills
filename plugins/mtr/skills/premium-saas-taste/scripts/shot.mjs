@@ -20,7 +20,7 @@ if (!chrome) { console.error('Chrome not found; set CHROME=/path/to/chrome'); pr
 mkdirSync(dirname(resolve(prefix)), { recursive: true });
 
 const port = 9300 + Math.floor(Math.random() * 500);
-const proc = spawn(chrome, ['--headless=new', `--remote-debugging-port=${port}`, '--hide-scrollbars', '--disable-gpu', '--allow-file-access-from-files',
+const proc = spawn(chrome, ['--headless=new', `--remote-debugging-port=${port}`, '--hide-scrollbars', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--allow-file-access-from-files',
   `--user-data-dir=${mkdtempSync(tmpdir() + '/shot-')}`, 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

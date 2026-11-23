@@ -4,7 +4,7 @@
  *   <script src="surface.js"></script>
  *   <script>
  *     Surface.render(document.getElementById('bg'), {
- *       source: 'sky',                      // sky | aurora | dunes | mesh | image
+ *       source: 'sky',                      // sky | aurora | horizon | curtain | ribbon | slats | dunes | contour | mesh | image
  *       colors: ['#1d3fd8', '#7fa6ff', '#ffffff'],
  *       treatment: 'halftone',              // none | dither | halftone | ascii | pixel
  *       cell: 6, grain: 0.06, seed: 7,
@@ -94,6 +94,57 @@
         return mix(paper, (major && acc) ? acc : line, k * (major ? 1 : 0.7));
       };
     },
+    // colors: [base, deep, limb, rim?] — a planet-like horizon glow rising from below the frame (Bolt, dark AI heroes)
+    horizon(c, fbm, asp) {
+      const base = c[0], deep = c[1] || c[0], limb = c[2] || [0.3, 0.5, 1], rim = c[3] || limb;
+      return (u, v) => {
+        const w = fbm(u * 2 * asp, v * 2, 3) * 0.04;
+        const ex = (u - 0.62) * asp / 1.9, ey = (v - 1.62) / 0.95, d = Math.sqrt(ex * ex + ey * ey) + w;   // limb at d = 1, ~70% down
+        if (d > 1) return mix(base, limb, Math.exp(-(d - 1) * 6) * 0.42);                                  // wide soft bloom above the limb
+        const inner = 1 - d;
+        const lit = mix(mix(rim, limb, smooth(0, 0.03, inner)), deep, smooth(0.02, 0.14, inner));          // thin bright limb → deep colour
+        return mix(lit, base, smooth(0.05, 0.3, inner) * 0.92);                                            // body of the planet falls back to dark
+      };
+    },
+    // colors: [dark, ..., light] — vertical aurora curtain: long-exposure streaks, bright at the top, falling into dark
+    curtain(c, fbm, asp) {
+      const ramp = c.slice().sort((a, b) => lum(a) - lum(b));
+      return (u, v) => {
+        const n = fbm(u * 6 * asp, v * 0.35, 4) * 0.5 + 0.5, hot = fbm(u * 2.2 * asp + 9, 1.3, 2) * 0.5 + 0.5;
+        const k = clamp(smooth(0.42, 0.85, n) * (1 - smooth(0.05, 0.95, v)) + smooth(0.62, 0.8, hot) * (1 - v) * 0.6);
+        const i = k * (ramp.length - 1), lo = Math.floor(i), hi = Math.min(ramp.length - 1, lo + 1);
+        return mix(ramp[lo], ramp[hi], i - lo);
+      };
+    },
+    // colors: [ground, band1, band2, ...] — folded ribbons of light leaking in from off-canvas top-right onto a light page (Stripe)
+    ribbon(c, fbm, asp) {
+      const ground = c[0], bands = c.slice(1).length ? c.slice(1) : [[1, 0.6, 0.4]];
+      return (u, v) => {
+        let col = ground;
+        for (let i = 0; i < 3; i++) {
+          const cx = 0.78 + i * 0.07 - 0.22 * v + 0.28 * (v - 0.15) * (v - 0.15) + fbm(v * 1.5 + i * 4, i, 2) * 0.05;
+          const d = (u - cx) * asp, half = 0.07 + 0.03 * i;
+          const across = smooth(-half, -half + 0.015, d) * (1 - smooth(half - 0.015, half, d));      // sharp edges across the band
+          const along = smooth(0.42, 0.9, u + (0.35 - v) * 0.3);                                     // fades out toward the left
+          const shade = 0.55 + 0.45 * smooth(-half, half, d);                                        // fold: one side lit
+          const t = clamp(v * 0.8 + i * 0.15), j = t * (bands.length - 1), lo = Math.floor(j), hi = Math.min(bands.length - 1, lo + 1);
+          const bc = mix(bands[lo], bands[hi], j - lo).map(x => x * shade + (1 - shade) * 0.15);
+          col = mix(col, bc, across * along * 0.92);
+        }
+        return col;
+      };
+    },
+    // colors: [base, ..., brightest] — parallel diagonal light slats on black with a vignette (Raycast); one hue family
+    slats(c, fbm, asp) {
+      const ramp = c.slice().sort((a, b) => lum(a) - lum(b));
+      return (u, v) => {
+        const s = (u * asp - v) * 3.2 + fbm(u, v, 2) * 0.3, ph = s - Math.floor(s);
+        const env = Math.exp(-(((u - 0.6) * asp) ** 2 * 3.2 + (v - 0.4) ** 2 * 7));
+        const k = clamp(Math.exp(-ph * 7) * env * 1.15);
+        const i = k * (ramp.length - 1), lo = Math.floor(i), hi = Math.min(ramp.length - 1, lo + 1);
+        return mix(ramp[lo], ramp[hi], i - lo);
+      };
+    },
     // colors: [base, blob1, blob2, ...] — soft colour fields (use with grain or a treatment, never bare)
     mesh(c, fbm, asp, r) {
       const base = c[0], blobs = c.slice(1).map(col => ({ col, x: 0.15 + r() * 0.7, y: 0.15 + r() * 0.7, s: 0.18 + r() * 0.22 }));
@@ -127,7 +178,9 @@
           const t = clamp((lum(c) - lo) / span + BAYER8[(y & 7) * 8 + (x & 7)] * (o.spread || 0.35));
           c = ramp[Math.min(ramp.length - 1, Math.floor(t * ramp.length))];
         }
-        const i = (y * w + x) * 4; d[i] = c[0] * 255; d[i + 1] = c[1] * 255; d[i + 2] = c[2] * 255; d[i + 3] = 255;
+        // per-channel ±1 LSB noise: removes gradient banding even when grain is off
+        const hs = ((x * 73856093) ^ (y * 19349663)) >>> 0, n = T === 'none' ? [(hs & 255) / 255 - 0.5, ((hs >> 8) & 255) / 255 - 0.5, ((hs >> 16) & 255) / 255 - 0.5] : [0, 0, 0];
+        const i = (y * w + x) * 4; d[i] = c[0] * 255 + n[0] * 2; d[i + 1] = c[1] * 255 + n[1] * 2; d[i + 2] = c[2] * 255 + n[2] * 2; d[i + 3] = 255;
       }
       if (step === 1) ctx.putImageData(img, 0, 0);
       else { const off = document.createElement('canvas'); off.width = w; off.height = h; off.getContext('2d').putImageData(img, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(off, 0, 0, W, H); }
