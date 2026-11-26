@@ -1,6 +1,6 @@
 {
   "name": "mtr",
-  "version": "1.3.0",
-  "description": "Personal skills by mthangtr: business (idea validation, offer definition, GTM), marketing (project marketing doc set), design (presentation slides, premium SaaS landing pages and app screens), motion videos (HTML-rendered motion graphics), and game (GDD doc sets, 2D/3D graphics).",
+  "version": "1.4.0",
+  "description": "Personal skills by mthangtr: business (idea validation, offer definition, GTM), marketing (project marketing doc set), design (presentation slides, premium SaaS landing pages and app screens), motion videos (HTML-rendered motion graphics), game (GDD doc sets, 2D/3D graphics), and review (multi-agent stress-testing of any artifact).",
   "author": { "name": "mthangtr" }
 }

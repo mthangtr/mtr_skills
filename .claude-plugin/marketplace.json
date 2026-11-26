@@ -7,10 +7,10 @@
     {
       "name": "mtr",
       "source": "./plugins/mtr",
-      "description": "Business, marketing, design, motion video, and game skills."
+      "description": "Business, marketing, design, motion video, game, and review skills."
     }
   ],
   "metadata": {
-    "description": "Personal Claude Code plugin by mthangtr: business, marketing, design, motion video, game."
+    "description": "Personal Claude Code plugin by mthangtr: business, marketing, design, motion video, game, review."
   }
 }
