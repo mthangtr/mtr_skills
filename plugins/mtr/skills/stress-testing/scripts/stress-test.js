@@ -36,6 +36,13 @@ const MAX_AGENTS = A.maxAgents || T.maxAgents
 const RESERVE = T.disputePasses + 1                // always kept for the report writers (one draft per dispute pass + final)
 const LATE_RESERVE = T.disputers + 1 + T.votes + (FIX === 'none' ? 0 : 3)  // kept for the dispute test: disputers + dedup + one verify batch + fix/regress/delta
 const FIX_RESERVE = FIX === 'none' ? 0 : 3         // kept for the first fix cycle: fix + regress + delta
+const CALIBRATE = T.calibrate && A.calibrate !== false
+// Calibration is the only ground truth for the panel's recall, so its agents are reserved like the report writers.
+const CAL_RESERVE = CALIBRATE ? T.lenses + 2 : 0  // plant + one finder per lens + match
+// Recall the panel must reach on planted defects before a clean result counts as PASS. Five plants make recall coarse:
+// 0.8 tolerates one miss; two misses mean the panel is demonstrably weak on this artifact.
+const CAL_THRESHOLD = A.calibrationThreshold ?? 0.8
+let calStarted = false
 let late = false                                   // set when the dispute test begins
 let fixStarted = false                             // set when the first fix cycle begins
 const VERIFY_BATCH = 4                             // findings per verifier agent
@@ -48,13 +55,13 @@ const current = () => (FIX === 'copy' && fixedOnce ? TARGETS : ARTS)
 
 // ---------------------------------------------------------------- agent budget (hard, enforced in code)
 // Smallest run that still does every step once: scope, finders, claims, dedup, one verify batch, fix, regress+delta.
-const MIN_AGENTS = 1 + T.lenses + T.claimChunks + 1 + T.votes + FIX_RESERVE + LATE_RESERVE + RESERVE
+const MIN_AGENTS = 1 + T.lenses + T.claimChunks + 1 + T.votes + FIX_RESERVE + LATE_RESERVE + RESERVE + CAL_RESERVE
 if (MAX_AGENTS < MIN_AGENTS) throw new Error(`maxAgents ${MAX_AGENTS} is below the ${A.tier || 'standard'} tier minimum of ${MIN_AGENTS}; raise it or pick a smaller tier`)
 let spawned = 0, reservedUsed = 0
 const dropped = []                                 // every piece of work skipped for budget, reported verbatim
 function canSpawn(n, reserved) {
   if (reserved) return spawned + n <= MAX_AGENTS
-  const held = (RESERVE - reservedUsed) + (late ? 0 : LATE_RESERVE) + (fixStarted ? 0 : FIX_RESERVE)
+  const held = (RESERVE - reservedUsed) + (late ? 0 : LATE_RESERVE) + (fixStarted ? 0 : FIX_RESERVE) + (calStarted ? 0 : CAL_RESERVE)
   if (spawned + n > MAX_AGENTS - held) return false
   if (budget.total && budget.remaining() < TOKEN_RESERVE) return false
   return true
@@ -332,7 +339,6 @@ function verdict() {
   const unchecked = blockers.filter(e => e.status === 'FIXED')
   if (unverifiableClaims.length) notes.push(`${unverifiableClaims.length} claim(s) unverifiable or not checked: ${unverifiableClaims.map(c => c.claimId).join(', ')}`)
   if (estimate && estimate.estimatedRemaining >= 1) notes.push(`capture-recapture estimates ~${estimate.estimatedRemaining} undiscovered blocker(s) (known risk, not a gate)`)
-  if (calibration && calibration.recall < 0.6) notes.push(`panel caught only ${calibration.caught}/${calibration.planted} planted defects`)
   if (dropped.length) notes.push(`${dropped.length} step(s) skipped for agent budget`)
   // Gate: PASS means no open blocker. A decision still pending, a fix nobody checked, or a blocker
   // candidate nobody verified is an open blocker for this purpose. Everything else is a note.
@@ -340,7 +346,13 @@ function verdict() {
   if (decisions.length) conditions.push(`${decisions.length} blocker(s) waiting on a decision: ${decisions.map(e => e.id).join(', ')}`)
   if (unchecked.length) conditions.push(`${unchecked.length} fix(es) never independently checked: ${unchecked.map(e => e.id).join(', ')}`)
   if (unverified.length) conditions.push(`${unverified.length} blocker candidate(s) never verified: ${unverified.map(e => e.id).join(', ')}`)
-  const status = open.length || conditions.length ? 'FAIL' : 'PASS'
+  // Second gate: the review itself must be shown able to find defects on this artifact.
+  const proof = []
+  if (CALIBRATE && !calibration) proof.push('calibration did not run, so the panel\'s recall on this artifact is unknown')
+  if (calibration && calibration.recall < CAL_THRESHOLD) proof.push(`panel caught only ${calibration.caught}/${calibration.planted} planted defects (threshold ${Math.round(CAL_THRESHOLD * 100)}%)`)
+  if (!CALIBRATE) notes.push('panel not calibrated (tier or args turned calibration off)')
+  const status = open.length || conditions.length ? 'FAIL' : proof.length ? 'UNPROVEN' : 'PASS'
+  conditions.push(...proof)
   return { status, openBlockers: open.map(e => `${e.id} ${e.status}`), conditions, notes }
 }
 const snapshot = () => JSON.stringify({
@@ -354,7 +366,7 @@ async function writeReport(label) {
 1. ${OUT}/ledger.json: exactly this JSON, unmodified:
 ${snapshot()}
 2. ${OUT}/REPORT.md, rendered from that JSON, in this order:
-   - Verdict line: status, each condition verbatim, then each note verbatim under 'Known risks'. One sentence on what the status means: PASS = no open blocker (no unfixed, unchecked, unverified or decision-pending critical/major defect); FAIL = at least one remains. Notes (unverifiable claims, residual estimate, calibration, budget skips) never change the status.
+   - Verdict line: status, each condition verbatim, then each note verbatim under 'Known risks'. One sentence on what the status means: PASS = no open blocker and the panel met its calibration threshold; FAIL = a critical/major defect is unfixed, unchecked, unverified or waiting on a decision; UNPROVEN = no open blocker found, but the panel missed too many planted defects (or calibration did not run), so the review, not the artifact, must be redone. Notes (unverifiable claims, residual estimate, budget skips) never change the status.
    - Blockers table: id, severity, location, title, status, evidence type, evidence (short), what changed. Every CONFIRMED/FIXED/VERIFIED/UNRESOLVED/DECISION_NEEDED blocker.
    - Decisions needed: each with its options. These defects are still present in the delivered artifact; say so.
    - Rejected findings: id, title, why refuted (from votes). A reader must see what was considered and dismissed.
@@ -413,13 +425,14 @@ ${EVIDENCE_RULE}`,
 }
 
 // ---------------------------------------------------------------- Calibrate: measured recall of this panel on this artifact
-if (T.calibrate && (A.calibrate !== false)) {
+if (CALIBRATE) {
   phase('Calibrate')
+  calStarted = true
   if (!canSpawn(lenses.length + 2)) { dropped.push('calibration'); log('budget: calibration skipped') }
   else {
     const plant = await run(
       `Copy ${current().join(', ')} into ${OUT}/calibration/ and plant 5 realistic defects in the copies, spread across these kinds: ${lenses.map(l => l.key).join(', ')}. Each must be as subtle as a real author mistake (a wrong number, a contradiction with another section, a missing failure case, an off-by-one, an unsupported guarantee), not a typo. Return the copy paths and where each defect is. Do not mark them in the files.`,
-      { label: 'calibrate:plant', phase: 'Calibrate', schema: PLANT_SCHEMA, effort: 'high', model: M.mech },
+      { label: 'calibrate:plant', phase: 'Calibrate', schema: PLANT_SCHEMA, effort: 'high', model: M.read },
     )
     if (plant) {
       const outs = await parallel(lenses.map(l => () => run(
