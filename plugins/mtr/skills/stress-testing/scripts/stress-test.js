@@ -25,6 +25,11 @@ const TIERS = {
   standard: { lenses: 4, claimChunks: 2, votes: 3, cycles: 2, disputers: 3, disputePasses: 2, calibrate: true,  maxAgents: 45 },
   max:      { lenses: 6, claimChunks: 4, votes: 3, cycles: 3, disputers: 3, disputePasses: 2, calibrate: true,  maxAgents: 90 },
 }
+// Models by role: mechanical steps on the cheapest model, reading and judging on a mid model,
+// the single writer on the strongest. All-top-model runs exhaust usage limits mid-run.
+const M = { mech: 'haiku', read: 'sonnet', fix: 'opus', ...(A.models || {}) }
+// Read and judge roles run as a research-capable agent type when one exists (args.researcherType, default 'agent-researcher').
+const RESEARCHER = A.researcherType === null ? undefined : (A.researcherType || 'agent-researcher')
 const T = TIERS[A.tier || 'standard']
 if (!T) throw new Error(`unknown tier ${A.tier}`)
 const MAX_AGENTS = A.maxAgents || T.maxAgents
@@ -90,7 +95,8 @@ const MATCH_SCHEMA = S({ caught: { type: 'array', items: { type: 'integer' } } }
 
 // ---------------------------------------------------------------- shared prompt parts
 const COLD = 'You start cold: you know only this prompt and the files it names. Do not assume anything the files do not say.'
-const EVIDENCE_RULE = `Evidence ladder, strongest first: execution (you ran it) > computation (you calculated it, show the numbers) > quote (exact text at a location) > source (an external reference you opened) > reasoning. Use the strongest rung the artifact allows. Every finding names its location and quotes the exact text it is about.`
+const RESEARCH_RULE = `Research, do not guess. For any fact the artifact relies on that lies outside it (laws and regulations, standards, vendor or library behaviour, APIs, prices, dates, market facts), open the primary source with your web and documentation tools (WebSearch, WebFetch, or tools loaded through ToolSearch such as firecrawl, exa, context7, perplexity) and quote it with its URL. Never assert such a fact from memory; if no source is reachable, mark it UNVERIFIABLE.`
+const EVIDENCE_RULE = RESEARCH_RULE + ` Evidence ladder, strongest first: execution (you ran it) > computation (you calculated it, show the numbers) > quote (exact text at a location) > source (an external reference you opened) > reasoning. Use the strongest rung the artifact allows. Every finding names its location and quotes the exact text it is about.`
 const KIND_RULE = `Kinds: DEFECT = wrong, self-contradictory, unsupported, or fails a requirement/purpose in the contract. IMPROVEMENT = would make it better but nothing is wrong. QUESTION = needs a decision or fact the artifact and its sources cannot supply. Severity (impact if left as is): critical = a stated guarantee/requirement is false or the artifact cannot be used safely; major = fails under realistic use or misleads a reader into a wrong action; minor = everything else.`
 
 // ---------------------------------------------------------------- ledger
@@ -118,7 +124,7 @@ Return:
 - oracles: the mechanical checks available (commands to run, code to execute, arithmetic, files to grep). Say "none" only after looking.
 - lenses: exactly ${T.lenses} lenses chosen from the catalog for this artifact type, each with a one-line focus tailored to this artifact. Always include "consistency" and "failure-scenarios".
 - outOfScope: what this review will not judge (style, preferences, redesigns the contract does not demand).`,
-  { label: 'scope', phase: 'Scope', schema: SCOPE_SCHEMA, effort: 'high' },
+  { label: 'scope', phase: 'Scope', schema: SCOPE_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
 )
 if (!scope) throw new Error('scope agent failed; nothing to review')
 const lenses = scope.lenses.slice(0, T.lenses)
@@ -139,7 +145,7 @@ Set newEvidence=true only when a finding that matches a REJECTED or VERIFIED ent
 Keep kind/severity as the most defensible value among the members; do not invent new findings.
 Ledger:\n${ledgerText()}
 Findings:\n${raw.map((r, i) => `[${i}] (${r.finder}) ${r.f.kind}/${r.f.severity} @ ${r.f.location}: ${r.f.title} | quote: ${r.f.quote} | evidence (${r.f.evidenceType}): ${r.f.evidence} | scenario: ${r.f.failureScenario}`).join('\n')}`,
-    { label: `${label} dedup`, phase: 'Verify', schema: DEDUP_SCHEMA },
+    { label: `${label} dedup`, phase: 'Verify', schema: DEDUP_SCHEMA, model: M.mech },
   )
   if (!res) { log(`${label}: dedup skipped (budget); ${raw.length} raw findings unprocessed`); dropped.push(`${label}: ${raw.length} raw findings never deduplicated or verified`); return [] }
   const toVerify = []
@@ -185,7 +191,7 @@ ${KIND_RULE}
 ${EVIDENCE_RULE}
 Findings:\n${b.map(e => `${e.id} ${e.kind}/${e.severity} @ ${e.location}: ${e.title}\n  evidence: ${e.evidence}\n  scenario: ${e.failureScenario}`).join('\n')}
 Return one verdict per id, with your own evidence. If you uphold it but the kind or severity is wrong, say the right one.`,
-    { label: `${label} verify:${v.key} #${bi + 1}`, phase: 'Verify', schema: VERDICTS_SCHEMA, effort: 'high' },
+    { label: `${label} verify:${v.key} #${bi + 1}`, phase: 'Verify', schema: VERDICTS_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
   ).then(r => { if (r) r.verdicts.forEach(x => { const e = b.find(y => y.id === x.id); if (e) e.votes.push({ lens: v.key, ...x }) }) }))))
   const confirmed = []
   for (const e of blockers) {
@@ -218,7 +224,7 @@ Contract:\n${CONTRACT}
 ${KIND_RULE}
 ${EVIDENCE_RULE}
 Report every DEFECT you can establish through this lens, plus IMPROVEMENTs and QUESTIONs you meet on the way. Out-of-scope items are not findings.`,
-    { label: `find:${l.key}`, phase: 'Discover', schema: FINDINGS_SCHEMA, effort: 'high' },
+    { label: `find:${l.key}`, phase: 'Discover', schema: FINDINGS_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
   ).then(r => (r ? r.findings.map(f => ({ finder: l.key, f })) : []))),
   ...claimChunks.map((chunk, ci) => () => run(
     `${COLD}
@@ -227,7 +233,7 @@ Artifact: ${ARTS.join(', ')}
 Oracles: ${scope.oracles.join('; ') || 'none'}
 ${EVIDENCE_RULE}
 Claims:\n${chunk.map(c => `${c.id} @ ${c.location}: ${c.text}`).join('\n')}`,
-    { label: `claims #${ci + 1}`, phase: 'Discover', schema: CLAIMS_SCHEMA, effort: 'high' },
+    { label: `claims #${ci + 1}`, phase: 'Discover', schema: CLAIMS_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
   ).then(r => {
     if (!r) { chunk.forEach(c => claimResults.push({ claimId: c.id, verdict: 'NOT_CHECKED', evidence: 'skipped: agent budget', evidenceType: 'reasoning' })); return [] }
     claimResults.push(...r.results)
@@ -264,8 +270,8 @@ async function fixCycle(n) {
     `You are the only writer. Fix these confirmed defects in ${current().join(', ')}${FIX === 'copy' && !fixedOnce ? `. First copy the originals to ${TARGETS.join(', ')} and edit only those copies` : ''}.
 Contract:\n${CONTRACT}
 Defects:\n${open.map(e => `${e.id} ${e.severity} @ ${e.location}: ${e.title}\n  evidence: ${e.evidence}\n  scenario: ${e.failureScenario}`).join('\n')}
-Each fix is the smallest change that makes the failure scenario impossible, using only facts present in the artifact, its sources or the contract. When a correct fix needs a value, policy or product decision those do not contain, do not choose one: leave the text, mark DECISION_NEEDED, and list 2-3 concrete options with their consequences. Keep every other part of the artifact byte-identical. Report the changed locations precisely.`,
-    { label: `fix #${n}`, phase: 'Fix', schema: FIX_SCHEMA, effort: 'high' },
+Each fix is the smallest change that makes the failure scenario impossible, using only facts present in the artifact, its sources, the contract, or primary sources you research and cite. ${RESEARCH_RULE} When a correct fix needs a value, policy or product decision those do not contain, do not choose one: leave the text, mark DECISION_NEEDED, and list 2-3 concrete options with their consequences. Keep every other part of the artifact byte-identical. Report the changed locations precisely.`,
+    { label: `fix #${n}`, phase: 'Fix', schema: FIX_SCHEMA, effort: 'high', model: M.fix },
   )
   if (!fx) return false
   if (FIX === 'copy') fixedOnce = true
@@ -284,7 +290,7 @@ Each fix is the smallest change that makes the failure scenario impossible, usin
 Check fixes. The fixer's account is a claim, not evidence: read ${current().join(', ')} yourself (originals: ${ARTS.join(', ')}; diff them) and use any oracle (${scope.oracles.join('; ') || 'none'}).
 For each id, fixed=true only if the failure scenario is now impossible.
 ${changed.map(c => `${c.e.id} @ ${c.e.location}: ${c.e.title}\n  scenario: ${c.e.failureScenario}\n  fixer says: ${c.e.change}`).join('\n')}`,
-      { label: `regress #${n}`, phase: 'Fix', schema: REGRESS_SCHEMA, effort: 'high' },
+      { label: `regress #${n}`, phase: 'Fix', schema: REGRESS_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
     ),
     () => run(
       `${COLD}
@@ -293,7 +299,7 @@ Find defects the changes introduced: contradictions with untouched text, broken 
 Contract:\n${CONTRACT}
 ${KIND_RULE}
 ${EVIDENCE_RULE}`,
-      { label: `delta #${n}`, phase: 'Fix', schema: FINDINGS_SCHEMA, effort: 'high' },
+      { label: `delta #${n}`, phase: 'Fix', schema: FINDINGS_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
     ),
   ])
   if (reg) for (const r of reg.results) {
@@ -322,17 +328,20 @@ function verdict() {
   const unverified = blockers.filter(e => e.status === 'UNVERIFIED' || e.status === 'PENDING')
   const decisions = blockers.filter(e => e.status === 'DECISION_NEEDED')
   const unverifiableClaims = [...new Map(claimResults.filter(c => c.verdict === 'UNVERIFIABLE' || c.verdict === 'NOT_CHECKED').map(c => [c.claimId, c])).values()]
-  const conditions = []
-  if (decisions.length) conditions.push(`${decisions.length} open blocker(s) remain until a decision is made: ${decisions.map(e => e.id).join(', ')}`)
+  const notes = []
   const unchecked = blockers.filter(e => e.status === 'FIXED')
+  if (unverifiableClaims.length) notes.push(`${unverifiableClaims.length} claim(s) unverifiable or not checked: ${unverifiableClaims.map(c => c.claimId).join(', ')}`)
+  if (estimate && estimate.estimatedRemaining >= 1) notes.push(`capture-recapture estimates ~${estimate.estimatedRemaining} undiscovered blocker(s) (known risk, not a gate)`)
+  if (calibration && calibration.recall < 0.6) notes.push(`panel caught only ${calibration.caught}/${calibration.planted} planted defects`)
+  if (dropped.length) notes.push(`${dropped.length} step(s) skipped for agent budget`)
+  // Gate: PASS means no open blocker. A decision still pending, a fix nobody checked, or a blocker
+  // candidate nobody verified is an open blocker for this purpose. Everything else is a note.
+  const conditions = []
+  if (decisions.length) conditions.push(`${decisions.length} blocker(s) waiting on a decision: ${decisions.map(e => e.id).join(', ')}`)
   if (unchecked.length) conditions.push(`${unchecked.length} fix(es) never independently checked: ${unchecked.map(e => e.id).join(', ')}`)
   if (unverified.length) conditions.push(`${unverified.length} blocker candidate(s) never verified: ${unverified.map(e => e.id).join(', ')}`)
-  if (unverifiableClaims.length) conditions.push(`${unverifiableClaims.length} claim(s) unverifiable or not checked: ${unverifiableClaims.map(c => c.claimId).join(', ')}`)
-  if (estimate && estimate.estimatedRemaining >= 1) conditions.push(`capture-recapture estimates ~${estimate.estimatedRemaining} undiscovered blocker(s)`)
-  if (calibration && calibration.recall < 0.6) conditions.push(`panel caught only ${calibration.caught}/${calibration.planted} planted defects`)
-  if (dropped.length) conditions.push(`${dropped.length} step(s) skipped for agent budget`)
-  const status = open.length ? 'FAIL' : conditions.length ? 'CONDITIONAL' : 'PASS'
-  return { status, openBlockers: open.map(e => `${e.id} ${e.status}`), conditions }
+  const status = open.length || conditions.length ? 'FAIL' : 'PASS'
+  return { status, openBlockers: open.map(e => `${e.id} ${e.status}`), conditions, notes }
 }
 const snapshot = () => JSON.stringify({
   verdict: verdict(), artifact: ARTS, output: current(), fixMode: FIX, tier: A.tier || 'standard',
@@ -345,7 +354,7 @@ async function writeReport(label) {
 1. ${OUT}/ledger.json: exactly this JSON, unmodified:
 ${snapshot()}
 2. ${OUT}/REPORT.md, rendered from that JSON, in this order:
-   - Verdict line: status, and each condition verbatim. One sentence on what the status means: PASS = no open blocker and every gate clean; CONDITIONAL = no open blocker but the listed conditions hold; FAIL = critical/major defects remain in the delivered artifact (unfixed, unchecked, or waiting on a decision).
+   - Verdict line: status, each condition verbatim, then each note verbatim under 'Known risks'. One sentence on what the status means: PASS = no open blocker (no unfixed, unchecked, unverified or decision-pending critical/major defect); FAIL = at least one remains. Notes (unverifiable claims, residual estimate, calibration, budget skips) never change the status.
    - Blockers table: id, severity, location, title, status, evidence type, evidence (short), what changed. Every CONFIRMED/FIXED/VERIFIED/UNRESOLVED/DECISION_NEEDED blocker.
    - Decisions needed: each with its options. These defects are still present in the delivered artifact; say so.
    - Rejected findings: id, title, why refuted (from votes). A reader must see what was considered and dismissed.
@@ -353,7 +362,7 @@ ${snapshot()}
    - Noted (not gating): improvements, questions, minor defects, one line each.
    - Method and limits: tier, agents spawned/cap, steps skipped for budget (verbatim), finders run, verification votes, capture-recapture estimate (a lower-biased estimate, roughly ±30%), calibration result or "not measured", dispute passes and outcomes, report corrections.
 Write for a reader with no other context: every statement in the report must be traceable to an entry in ledger.json.`,
-    { label, phase: 'Report', effort: 'low' }, true,
+    { label, phase: 'Report', effort: 'low', model: M.mech }, true,
   )
 }
 
@@ -376,7 +385,7 @@ A stress-test claims the files below are correct. Dispute them. Focus: ${d}.
 Files: ${current().join(', ')} (artifact as delivered), ${ARTS.join(', ')} (original), ${OUT}/REPORT.md, ${OUT}/ledger.json.
 Report only disputes you can establish with evidence; critical/major only (minor issues are already listed as known).
 ${EVIDENCE_RULE}`,
-    { label: `dispute ${pass}.${i + 1}`, phase: 'Dispute', schema: DISPUTE_SCHEMA, effort: 'high' },
+    { label: `dispute ${pass}.${i + 1}`, phase: 'Dispute', schema: DISPUTE_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
   )))
   const disputes = outs.filter(Boolean).flatMap(o => o.disputes)
   const reportClaims = disputes.filter(d => d.type === 'UNSUPPORTED_REPORT_CLAIM')
@@ -410,7 +419,7 @@ if (T.calibrate && (A.calibrate !== false)) {
   else {
     const plant = await run(
       `Copy ${current().join(', ')} into ${OUT}/calibration/ and plant 5 realistic defects in the copies, spread across these kinds: ${lenses.map(l => l.key).join(', ')}. Each must be as subtle as a real author mistake (a wrong number, a contradiction with another section, a missing failure case, an off-by-one, an unsupported guarantee), not a typo. Return the copy paths and where each defect is. Do not mark them in the files.`,
-      { label: 'calibrate:plant', phase: 'Calibrate', schema: PLANT_SCHEMA, effort: 'high' },
+      { label: 'calibrate:plant', phase: 'Calibrate', schema: PLANT_SCHEMA, effort: 'high', model: M.mech },
     )
     if (plant) {
       const outs = await parallel(lenses.map(l => () => run(
@@ -421,14 +430,14 @@ Contract:\n${CONTRACT}
 ${KIND_RULE}
 ${EVIDENCE_RULE}
 Report every critical/major DEFECT you can establish.`,
-        { label: `calibrate:${l.key}`, phase: 'Calibrate', schema: FINDINGS_SCHEMA, effort: 'high' },
+        { label: `calibrate:${l.key}`, phase: 'Calibrate', schema: FINDINGS_SCHEMA, effort: 'high', model: M.read, agentType: RESEARCHER },
       )))
       const got = outs.filter(Boolean).flatMap(o => o.findings)
       const m = await run(
         `Planted defects:\n${plant.planted.map((p, i) => `[${i}] @ ${p.location}: ${p.description}`).join('\n')}
 Reported findings:\n${got.map(f => `@ ${f.location}: ${f.title}`).join('\n') || '(none)'}
 Return the indexes of planted defects that some reported finding identifies (same problem, same place).`,
-        { label: 'calibrate:match', phase: 'Calibrate', schema: MATCH_SCHEMA, effort: 'low' },
+        { label: 'calibrate:match', phase: 'Calibrate', schema: MATCH_SCHEMA, effort: 'low', model: M.mech },
       )
       if (m) {
         const caught = new Set(m.caught.filter(i => i >= 0 && i < plant.planted.length)).size

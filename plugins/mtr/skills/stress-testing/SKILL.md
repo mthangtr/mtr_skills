@@ -16,6 +16,11 @@ description: Use when an artifact (code, design or architecture doc, spec, plan,
 - Every check that did not run is named.
 - The verdict is computed from gates, not judged.
 
+Two rules hold for every agent the workflow spawns:
+
+- **Research, never guess.** A fact the artifact depends on that lies outside it, such as a law, a standard, an API, a vendor's behaviour, a price or a date, is checked against its primary source with web or documentation tools and quoted with its URL. A fact that cannot be sourced is marked UNVERIFIABLE, never asserted from memory.
+- **The right model for each role.** Cheap models do mechanical steps, a mid model reads and judges, and the strongest model is used only for the single writer.
+
 The bundled workflow enforces this in code. Every independent finder runs once over the whole artifact. Verifiers start cold and default to "refuted". A single writer fixes. After that, only the changed regions are re-reviewed. Cold agents then try to dispute the output files themselves. Agent count has a hard cap.
 
 Why each mechanism exists, with sources: `references/evidence.md`.
@@ -34,6 +39,8 @@ Why each mechanism exists, with sources: `references/evidence.md`.
    | `tier` | `quick` (cap 24 agents), `standard` (cap 45, the default), `max` (cap 90). Measured cost: `quick` on a 50-line design doc took 16 agents, about 1M subagent tokens and 17 minutes. Scale your expectations from that. |
    | `fix` | `copy` (default; writes `out/fixed/`), `inplace` (code in a git repo with a clean tree, so tests run against the real tree), `none` (report only) |
    | `maxAgents` | lower the cap if needed. The script refuses a cap below its tier's minimum. |
+   | `models` | optional `{mech, read, fix}` override. Default: `haiku` for mechanical steps (dedup, report rendering, calibration plant and match), `sonnet` for reading and judging (scope, finders, claims, verifiers, regression and delta checks, disputers), `opus` for the single writer. Running every role on the top model exhausts usage limits mid-run. |
+   | `researcherType` | agent type for read and judge roles, default `agent-researcher` (needs web and docs tools). Pass `null` where no such agent type exists; the default agent then still receives the research rule. |
 
 2. **Opt-in.** Run the workflow directly when the user typed `/stress-testing` or asked for a stress test, workflow or ultracode. Otherwise, state the tier, the agent cap and the fact that it spawns subagents, then ask before running.
 3. **Run.** Call `Workflow({scriptPath: "<skillDir>/scripts/stress-test.js", args: {...}})`. Pass `args` as a JSON object, not a string.
@@ -43,11 +50,12 @@ Why each mechanism exists, with sources: `references/evidence.md`.
 
 | Status | Meaning | Your next move |
 |---|---|---|
-| PASS | No open blocker. Every claim was checked. No residual estimate, calibration miss or skipped step. | Deliver. |
-| CONDITIONAL | No open blocker, but listed conditions hold (unverifiable claims, an estimated residual, low calibration recall, budget skips). | Hand the conditions to the user. |
-| FAIL | A confirmed critical or major defect is still in the delivered artifact: unfixed, fix not independently checked, or DECISION_NEEDED. | Show the open blockers with their evidence, and the options for each DECISION_NEEDED. The user decides; once they do, a fresh run checks the result. |
+| PASS | No open blocker. No critical or major defect is unfixed, unchecked, unverified or waiting on a decision. | Deliver, and pass the notes on as known risks. |
+| FAIL | At least one critical or major defect is still open: unfixed, its fix not independently checked, its candidate never verified, or DECISION_NEEDED. | Show the open blockers with their evidence, and the options for each DECISION_NEEDED. The user decides; once they do, a fresh run checks the result. |
 
-A CONDITIONAL or FAIL ends the run. Any follow-up is a fresh run the user asks for, after they supply the decisions or facts the conditions name. That boundary is what keeps the work from reaching round 17.
+**Notes** are reported but never gate the result. They cover unverifiable claims, the capture-recapture residual estimate, low calibration recall and budget skips. A residual estimate is a known risk, not a reason to run again. Chasing a zero residual is the round-17 trap, because LLM finders always find some edge case that only one of them sees.
+
+A FAIL ends the run. Any follow-up is a fresh run the user asks for, after they supply the decisions the open blockers need.
 
 ## Without the Workflow tool
 
@@ -59,6 +67,7 @@ Inside a subagent or another harness, run the same phases yourself with the Agen
 - One writer applies the fixes.
 - After the fix, one agent checks the fixes and one reviews the changed regions.
 - Three cold disputers read only the outputs.
+- Give read and judge roles web and documentation tools, and apply the research rule.
 - Compute the verdict by the table above.
 - Cap the run at the tier's agent count.
 
@@ -73,4 +82,6 @@ These failures were observed in baseline runs without this skill:
 | Treating "no findings" as done | Use the claims inventory: every claim gets HOLDS, FAILS or UNVERIFIABLE. |
 | Adding more reviewers, debate rounds, or "hostile reader" personas to increase confidence | Use distinct lenses, cold verifiers and oracles (run it, compute it). Same-model panels repeat each other's errors. |
 | Fanning out 100 reviewers | The tier cap is enforced in code. Pick a tier rather than a count. |
-| Writing the verdict as prose ("looks solid") | Quote the computed status and its conditions verbatim. |
+| Writing the verdict as prose ("looks solid") | Quote the computed status, its conditions and its notes verbatim. |
+| Agents asserting laws, API behaviour or vendor facts from memory | Every agent researches primary sources and cites URLs; unsourced facts are UNVERIFIABLE. |
+| Running every agent on the top model | Use model tiering by role; the top model is for the single writer only. |
